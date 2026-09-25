@@ -1,0 +1,96 @@
+[package]
+name = "worker-kit"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Periodic job scheduling for Rust services — jittered intervals, graceful drain, breaker-aware failure budgets, optional leader election"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/WyattAu/worker-kit"
+keywords = ["scheduler", "cron", "jobs", "reliability", "background"]
+categories = ["asynchronous", "concurrency"]
+exclude = [".github/", "benches/"]
+
+[features]
+default = ["breaker"]
+# Circuit-breaker wrapping of job closures (estate `breaker = "2"`).
+breaker = ["dep:breaker"]
+# Cron triggers, parsed with the estate's `cron` crate (UTC wall-clock;
+# see the crate docs for DST limitations).
+cron = ["dep:cron", "dep:chrono"]
+# Leader election: the `Lease` trait + `MemoryLease`. Redis-backed leases
+# additionally require the `redis` feature.
+leader = ["dep:async-trait"]
+# Redis `SET NX PX` lease implementation (implies `leader`).
+redis = ["dep:redis", "leader"]
+
+[dependencies]
+async-trait = { version = "0.1", optional = true }
+# `timeout` is enabled deliberately: it appends a `Timeout` variant to
+# `CircuitBreakerError`, and this crate's fire match must stay total
+# under ANY feature unification a consumer enables (the outbox-kit 0.1.0
+# regression class). The wildcard arm documents the handling.
+breaker = { version = "2", features = ["timeout"], optional = true }
+chrono = { version = "0.4", default-features = false, features = [
+  "clock",
+], optional = true }
+cron = { version = "0.17", default-features = false, optional = true }
+futures = { version = "0.3", default-features = false, features = [
+  "std",
+] }
+rand = { version = "0.10", default-features = false, features = ["std"] }
+redis = { version = "0.27", default-features = false, features = [
+  "tokio-comp",
+  "connection-manager",
+  "script",
+], optional = true }
+shutdown-kit = "0.3"
+thiserror = { version = "2", default-features = false }
+tokio = { version = "1", default-features = false, features = [
+  "rt",
+  "sync",
+  "time",
+] }
+
+[dev-dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+criterion = "0.8"
+proptest = "1"
+testcontainers = "0.27"
+testcontainers-modules = { version = "0.15", features = ["redis"] }
+tokio = { version = "1", features = [
+  "rt-multi-thread",
+  "macros",
+  "time",
+  "sync",
+] }
+
+[[bench]]
+name = "worker_bench"
+harness = false
+
+[[test]]
+name = "cron_schedule"
+required-features = ["cron"]
+
+[[test]]
+# Docker-backed testcontainer suite; every test inside is `#[ignore]`-gated,
+# so the normal `cargo test` gate never requires Docker.
+name = "redis_lease"
+required-features = ["redis"]
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+undocumented_unsafe_blocks = "deny"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
