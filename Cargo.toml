@@ -38,7 +38,7 @@ futures = { version = "0.3", default-features = false, features = [
   "std",
 ] }
 rand = { version = "0.10", default-features = false, features = ["std"] }
-redis = { version = "0.27", default-features = false, features = [
+redis = { version = "1.7", default-features = false, features = [
   "tokio-comp",
   "connection-manager",
   "script",
