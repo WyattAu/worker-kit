@@ -227,8 +227,13 @@ impl JobRunner {
         #[cfg(feature = "leader")]
         if self.spec.leader {
             let lease: Arc<dyn Lease> = self.lease.clone().unwrap_or_else(|| Arc::new(MemoryLease));
+            // Held holders renew; a failed renew falls back to acquire so
+            // a lapsed leader can take over again once the lease is free
+            // (if another holder took it, the `SET NX` acquire fails and
+            // the fire is a skip — the safe direction).
             let elected = if self.leader_held.load(Ordering::Relaxed) {
                 lease.renew(holder, self.lease_ttl).await
+                    || lease.acquire(holder, self.lease_ttl).await
             } else {
                 lease.acquire(holder, self.lease_ttl).await
             };
@@ -506,6 +511,77 @@ mod tests {
         assert_eq!(summary.failures, 0);
         assert!(!summary.degraded);
         assert_eq!(summary.last_error, None);
+    }
+
+    #[cfg(feature = "breaker")]
+    #[cfg(feature = "leader")]
+    mod leader_tests {
+        use super::*;
+
+        /// Renewals fail while `others_hold` is set — as if another
+        /// instance took the lease. Acquisition always succeeds when the
+        /// lease is free (the `SET NX` shape).
+        struct LapsingLease {
+            others_hold: AtomicBool,
+        }
+
+        impl LapsingLease {
+            fn new() -> Self {
+                Self {
+                    others_hold: AtomicBool::new(false),
+                }
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl crate::leader::Lease for LapsingLease {
+            async fn acquire(&self, _holder: &str, _ttl: Duration) -> bool {
+                !self.others_hold.load(Ordering::Relaxed)
+            }
+            async fn renew(&self, _holder: &str, _ttl: Duration) -> bool {
+                !self.others_hold.load(Ordering::Relaxed)
+            }
+        }
+
+        #[tokio::test]
+        async fn a_lapsed_leader_reacquires_instead_of_stalling() {
+            let lease = Arc::new(LapsingLease::new());
+            let job_runner = JobRunner::new(
+                JobSpec {
+                    name: "crowned".to_owned(),
+                    trigger: crate::trigger::Trigger::Interval(Duration::from_millis(10)),
+                    closure: Arc::new(|_ctx: JobContext| {
+                        Box::pin(async { Ok::<(), JobError>(()) })
+                    }),
+                    failure_budget: 5,
+                    leader: true,
+                },
+                JitterPolicy::new(0.0),
+            )
+            .with_lease(Some(lease.clone()), Duration::from_secs(30));
+            let guard = ShutdownGuard::new();
+
+            // Fire 1: elected by acquisition, fires.
+            job_runner.fire(&guard, "holder").await;
+            assert_eq!(job_runner.status().fires, 1);
+
+            // Fire 2: the lease was taken over — renew fails, the SET-NX
+            // acquire fails too: a recorded skip.
+            lease.others_hold.store(true, Ordering::Relaxed);
+            job_runner.fire(&guard, "holder").await;
+            let status = job_runner.status();
+            assert_eq!(status.fires, 1, "a non-leader never fires");
+            assert_eq!(status.skips, 1);
+
+            // Fire 3: the other holder is gone. The failed renew must
+            // fall back to acquire — a stalled "renew forever" leader
+            // would never fire again even with the lease free.
+            lease.others_hold.store(false, Ordering::Relaxed);
+            job_runner.fire(&guard, "holder").await;
+            let status = job_runner.status();
+            assert_eq!(status.fires, 2, "the lapsed leader reacquired");
+            assert_eq!(status.skips, 1);
+        }
     }
 
     #[cfg(feature = "breaker")]
