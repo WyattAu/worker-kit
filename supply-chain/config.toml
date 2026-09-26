@@ -884,12 +884,14 @@ version = "0.7.1"
 criteria = "safe-to-run"
 
 [[exemptions.serde_with]]
-version = "3.23.0"
+version = "3.24.0"
 criteria = "safe-to-run"
+notes = "Dev-only via testcontainers/testcontainers-modules [dev-dependencies]; no safe-to-run certification for 3.24.0 yet."
 
 [[exemptions.serde_with_macros]]
-version = "3.23.0"
+version = "3.24.0"
 criteria = "safe-to-run"
+notes = "Proc-macro dep of serde_with 3.24.0; dev-only via testcontainers chain."
 
 [[exemptions.sha1_smol]]
 version = "1.0.1"
