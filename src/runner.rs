@@ -18,7 +18,7 @@ use breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerError};
 use crate::error::JobError;
 use crate::job::{Job, JobContext, JobSpec};
 use crate::supervisor::{JobRunSummary, JobStatus};
-use crate::trigger::{clock_seed, JitterPolicy, SCHEDULE_PARK};
+use crate::trigger::{JitterPolicy, SCHEDULE_PARK};
 
 #[cfg(feature = "leader")]
 use crate::leader::{Lease, MemoryLease};
@@ -124,6 +124,8 @@ impl JobRunner {
             name: self.spec.name.clone(),
             fires: self.stats.fires.load(Ordering::Relaxed),
             failures: self.stats.failures.load(Ordering::Relaxed),
+            skips: self.stats.skips.load(Ordering::Relaxed),
+            paused: self.stats.paused.load(Ordering::Relaxed),
             degraded: self.stats.degraded.load(Ordering::Relaxed),
             last_error: self.last_error(),
         }
@@ -173,18 +175,34 @@ impl JobRunner {
     }
 
     /// The job loop: sleep to the next (jittered) tick, fire, repeat —
-    /// until shutdown. Returns the summary the supervisor reports.
+    /// until shutdown. Returns the summary the supervisor reports. Jobs
+    /// with `drain_pass` get one final fire after the loop exits.
     pub(crate) async fn run_loop(
         self: Arc<Self>,
         shutdown: ShutdownGuard,
         holder: String,
+        seed: u64,
     ) -> JobRunSummary {
-        // Per-worker RNG seeded from wall-clock nanos: jitter is schedule
-        // decorrelation, not security — see `JitterPolicy`'s docs.
-        let mut rng = SmallRng::seed_from_u64(clock_seed());
+        // Per-worker RNG: schedule decorrelation, not security — see
+        // `JitterPolicy`'s docs. Seeded from the supervisor's seed
+        // (`Supervisor::seed`) XOR the worker name, so a seeded
+        // supervisor reproduces runs.
+        let name_hash = {
+            use std::hash::{BuildHasher, Hasher};
+            let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+            h.write(self.spec.name.as_bytes());
+            h.finish()
+        };
+        let effective_seed = seed ^ name_hash;
+        let mut rng = SmallRng::seed_from_u64(effective_seed);
         let mut shutdown_rx = shutdown.watch_receiver();
 
-        // First tick: one schedule step from the supervisor's start.
+        // First tick: one schedule step from the supervisor's start —
+        // or an immediate fire for `fire_at_start` jobs (a fire at
+        // startup is the point; the first scheduled tick follows).
+        if self.spec.fire_at_start {
+            self.fire(&shutdown, &holder).await;
+        }
         let mut tick = first_tick(&self.spec.trigger);
 
         loop {
@@ -215,6 +233,11 @@ impl JobRunner {
             }
         }
 
+        // Drain pass: one final fire for flush-then-exit jobs. Runs
+        // after the loop observed shutdown; jobs gate themselves.
+        if self.spec.drain_pass {
+            self.fire(&shutdown, &holder).await;
+        }
         self.summary()
     }
 
@@ -282,8 +305,10 @@ impl JobRunner {
     async fn invoke(&self, ctx: JobContext) -> FireOutcome {
         let job = Arc::clone(&self.spec.closure);
         #[cfg(feature = "breaker")]
-        if let Some(breaker) = &self.breaker {
-            return Self::invoke_through_breaker(breaker, job, ctx).await;
+        if self.spec.use_breaker {
+            if let Some(breaker) = &self.breaker {
+                return Self::invoke_through_breaker(breaker, job, ctx).await;
+            }
         }
         Self::invoke_plain(job, ctx).await
     }
@@ -343,6 +368,8 @@ impl JobRunner {
             // failure; the variant carries no payload to display, so the
             // message is static and the match stays total under ANY
             // unification.
+            // Feature-unification safety (see above): total match.
+            #[allow(unreachable_patterns)]
             Err(_) => FireOutcome::Failure(JOB_UNCLASSIFIED_MESSAGE.to_owned()),
         }
     }
@@ -407,6 +434,9 @@ mod tests {
             closure: job_closure,
             failure_budget: budget,
             leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: true,
         };
         JobRunner::new(spec, JitterPolicy::new(0.0))
     }
@@ -555,6 +585,9 @@ mod tests {
                     }),
                     failure_budget: 5,
                     leader: true,
+                    fire_at_start: false,
+                    drain_pass: false,
+                    use_breaker: true,
                 },
                 JitterPolicy::new(0.0),
             )

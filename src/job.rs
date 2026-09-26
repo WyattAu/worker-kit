@@ -72,6 +72,9 @@ impl std::fmt::Debug for JobContext {
 ///     }),
 ///     failure_budget: 5,
 ///     leader: false,
+///     fire_at_start: false,
+///     drain_pass: false,
+///     use_breaker: true,
 /// };
 /// assert_eq!(spec.failure_budget, 5);
 /// ```
@@ -93,6 +96,25 @@ pub struct JobSpec {
     /// failures. Without a lease configured, leadership is a no-op
     /// (the `MemoryLease` always wins).
     pub leader: bool,
+    /// Fire once immediately at loop start, before the first scheduled
+    /// tick. Default `false` (tokio-interval semantics: nothing fires
+    /// before the first period elapses). Set `true` for jobs whose work
+    /// must happen "shortly after startup" — e.g. a GC or a first-flush
+    /// pass referenced by a spec document.
+    pub fire_at_start: bool,
+    /// Run one final fire when shutdown is observed, after the loop
+    /// exits. Default `false`. The drain-pass fire is a last chance for
+    /// flush-then-exit jobs (e.g. an outbox flush queued for send): the
+    /// closure receives the shutdown guard already in the signalled
+    /// state, so jobs that gate on it must make the final pass
+    /// unconditional to benefit.
+    pub drain_pass: bool,
+    /// Route fires through the per-job circuit breaker (`breaker`
+    /// feature). Default `true`. Set `false` for jobs where pausing on
+    /// clustered failures is wrong — local-DB sweeps in single-instance
+    /// apps, where "transient errors → stop sweeping" hurts more than
+    /// the stampede it prevents.
+    pub use_breaker: bool,
 }
 
 impl JobSpec {
@@ -105,6 +127,9 @@ impl JobSpec {
             closure,
             failure_budget: DEFAULT_FAILURE_BUDGET,
             leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: true,
         }
     }
 }

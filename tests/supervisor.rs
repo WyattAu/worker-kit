@@ -149,6 +149,9 @@ async fn degraded_after_the_failure_budget_but_still_running() {
             closure: boxed(|_ctx| async { Err(JobError::msg("down")) }),
             failure_budget: 3,
             leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: true,
         })
         .expect("valid name");
 
@@ -260,6 +263,9 @@ mod breaker_tests {
                 }),
                 failure_budget: 50,
                 leader: false,
+                fire_at_start: false,
+                drain_pass: false,
+                use_breaker: true,
             })
             .expect("valid name");
 
@@ -347,6 +353,9 @@ mod leader_tests {
             closure: boxed(|_ctx| async { Ok::<(), JobError>(()) }),
             failure_budget: 5,
             leader,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: true,
         };
         supervisor.register(spec("crowned", true)).expect("valid");
         supervisor.register(spec("commoner", false)).expect("valid");
@@ -384,6 +393,9 @@ mod leader_tests {
                 closure: boxed(|_ctx| async { Ok::<(), JobError>(()) }),
                 failure_budget: 5,
                 leader: true,
+                fire_at_start: false,
+                drain_pass: false,
+                use_breaker: true,
             })
             .expect("valid");
 
@@ -477,6 +489,9 @@ async fn run_report_is_exact_and_name_ordered() {
             }),
             failure_budget: 10,
             leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: true,
         })
         .expect("valid");
     supervisor
@@ -555,4 +570,175 @@ async fn duplicate_names_register_independent_workers() {
     assert_eq!(report.per_job.len(), 2, "both entries are reported");
     assert_eq!(report.per_job[0].name, "twin");
     assert_eq!(report.per_job[1].name, "twin");
+}
+
+// ── 0.2.0: fire_at_start, drain_pass, per-job breaker opt-out, seed ────
+
+#[tokio::test]
+async fn fire_at_start_fires_immediately_before_the_first_period() {
+    let (guard, mut supervisor) = supervisor(false);
+    let fires = Arc::new(AtomicU32::new(0));
+    let f = Arc::clone(&fires);
+    supervisor
+        .register(JobSpec {
+            name: "startup-sweep".to_owned(),
+            trigger: Trigger::Interval(Duration::from_secs(3600)),
+            closure: boxed(move |_| {
+                let f = Arc::clone(&f);
+                async move {
+                    f.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                }
+            }),
+            failure_budget: 5,
+            leader: false,
+            fire_at_start: true,
+            drain_pass: false,
+            use_breaker: true,
+        })
+        .expect("valid");
+
+    let supervisor = Arc::new(supervisor);
+    let runner = tokio::spawn(Arc::clone(&supervisor).run());
+    wait_until(
+        Duration::from_secs(2),
+        "fire_at_start must fire well before the first period",
+        || fires.load(Ordering::SeqCst) >= 1,
+    )
+    .await;
+    guard.shutdown();
+    let _ = runner.await;
+}
+
+#[tokio::test]
+async fn drain_pass_fires_once_after_shutdown() {
+    let (guard, mut supervisor) = supervisor(false);
+    let drained = Arc::new(AtomicU32::new(0));
+    let d = Arc::clone(&drained);
+    supervisor
+        .register(JobSpec {
+            name: "flusher".to_owned(),
+            trigger: Trigger::Interval(Duration::from_secs(3600)),
+            closure: boxed(move |ctx| {
+                let d = Arc::clone(&d);
+                async move {
+                    // Final flush on shutdown: the drain pass arrives with
+                    // the guard signalled — a drain_pass job must not gate
+                    // on it for the last pass.
+                    if ctx.shutdown.is_shutdown() {
+                        d.fetch_add(1, Ordering::SeqCst);
+                    }
+                    Ok(())
+                }
+            }),
+            failure_budget: 5,
+            leader: false,
+            fire_at_start: false,
+            drain_pass: true,
+            use_breaker: true,
+        })
+        .expect("valid");
+
+    let supervisor = Arc::new(supervisor);
+    let runner = tokio::spawn(Arc::clone(&supervisor).run());
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    guard.shutdown();
+    let report = runner.await.expect("supervisor run");
+    assert_eq!(
+        report
+            .per_job
+            .iter()
+            .find(|s| s.name == "flusher")
+            .map(|s| s.fires)
+            .unwrap_or(0),
+        1,
+        "exactly one drain-pass fire"
+    );
+    assert_eq!(drained.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn use_breaker_false_lets_a_failing_job_keep_firing() {
+    use breaker::CircuitBreakerConfig;
+
+    let (guard, mut supervisor) = supervisor(false);
+    supervisor
+        .breaker_config(
+            CircuitBreakerConfig::builder()
+                .consecutive_failures(2)
+                .failure_rate_threshold(1.0)
+                .sliding_window_size(10)
+                .backoff(breaker::BackoffStrategy::Fixed(Duration::from_millis(400)))
+                .half_open_max_calls(1)
+                .minimum_calls(2)
+                .build(),
+        )
+        .register(JobSpec {
+            name: "always-fails-no-breaker".to_owned(),
+            trigger: Trigger::Interval(Duration::from_millis(10)),
+            closure: boxed(|_| async { Err(JobError::msg("boom")) }),
+            failure_budget: 1_000, // never degrades — must keep firing
+            leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: false,
+        })
+        .expect("valid");
+
+    let supervisor = Arc::new(supervisor);
+    let runner = tokio::spawn(Arc::clone(&supervisor).run());
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    guard.shutdown();
+
+    let report = runner.await.expect("supervisor run");
+    let summary = report
+        .per_job
+        .iter()
+        .find(|s| s.name == "always-fails-no-breaker")
+        .expect("job in report");
+    assert!(
+        summary.fires >= 5,
+        "opted-out job must keep firing past any breaker threshold (got {})",
+        summary.fires
+    );
+    assert_eq!(summary.paused, 0, "no pauses without a breaker");
+}
+
+#[tokio::test]
+async fn seeded_supervisor_is_reproducible_in_shape() {
+    // The seed contract: a seeded supervisor runs normally (fires happen).
+    // Exact jitter equality is covered by JitterPolicy's seeded draw tests.
+    let (guard, mut supervisor) = supervisor(false);
+    supervisor.seed(0xC0FFEE);
+    let fired = Arc::new(AtomicU32::new(0));
+    let f = Arc::clone(&fired);
+    supervisor
+        .register(JobSpec {
+            name: "seeded".to_owned(),
+            trigger: Trigger::Interval(Duration::from_millis(20)),
+            closure: boxed(move |_| {
+                let f = Arc::clone(&f);
+                async move {
+                    f.fetch_add(1, Ordering::SeqCst);
+                    Ok(())
+                }
+            }),
+            failure_budget: 5,
+            leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: true,
+        })
+        .expect("valid");
+
+    let supervisor = Arc::new(supervisor);
+    let runner = tokio::spawn(Arc::clone(&supervisor).run());
+    wait_until(
+        Duration::from_secs(2),
+        "seeded supervisor must fire",
+        || fired.load(Ordering::SeqCst) >= 1,
+    )
+    .await;
+    guard.shutdown();
+    let _ = runner.await;
 }

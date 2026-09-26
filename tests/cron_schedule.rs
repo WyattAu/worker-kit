@@ -42,6 +42,9 @@ fn noop_spec(name: &str, expr: &str) -> JobSpec {
         }),
         failure_budget: 5,
         leader: false,
+        fire_at_start: false,
+        drain_pass: false,
+        use_breaker: true,
     }
 }
 

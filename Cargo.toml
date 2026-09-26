@@ -1,6 +1,6 @@
 [package]
 name = "worker-kit"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Periodic job scheduling for Rust services — jittered intervals, graceful drain, breaker-aware failure budgets, optional leader election"
@@ -29,7 +29,7 @@ async-trait = { version = "0.1", optional = true }
 # `CircuitBreakerError`, and this crate's fire match must stay total
 # under ANY feature unification a consumer enables (the outbox-kit 0.1.0
 # regression class). The wildcard arm documents the handling.
-breaker = { version = "2", features = ["timeout"], optional = true }
+breaker = { version = "2", optional = true }
 chrono = { version = "0.4", default-features = false, features = [
   "clock",
 ], optional = true }

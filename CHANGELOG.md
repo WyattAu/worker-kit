@@ -1,8 +1,28 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-and the project adheres to [Semantic Versioning](https://semver.org).
+All notable changes to this project are documented here. Format: [Keep a
+Changelog](https://keepachangelog.com/) — versions follow [semver](https://semver.org).
+
+## [0.2.0] - 2026-09-26
+
+### Added
+- `JobSpec::fire_at_start` — immediate first fire before the first
+  scheduled tick (startup-pass jobs; tokio-interval semantics opt-in).
+- `JobSpec::drain_pass` — one final fire after shutdown is observed, for
+  flush-then-exit jobs (the closure sees the guard signalled; gate on it
+  only for non-drain passes).
+- `Supervisor::seed(u64)` — deterministic jitter sequence across runs
+  (XOR'd with the worker name so distinct jobs decorrelate).
+- `JobRunSummary::skips` / `::paused` — leadership/breaker outcomes are
+  now auditable in the terminal report.
+- `JobSpec::use_breaker` — per-job breaker opt-out for local-DB sweeps
+  where pausing on clustered failures is wrong.
+
+### Fixed
+- Dropped the forced `timeout` feature on the breaker dependency: it
+  unified graph-wide and broke hosts with non-total breaker matches
+  (estate-integration round-4 finding). This crate's fire match remains
+  total under any unification.
 
 ## [0.1.0] — 2026-09-26
 

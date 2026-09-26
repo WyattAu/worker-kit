@@ -70,6 +70,11 @@ pub struct JobRunSummary {
     pub fires: u64,
     /// Failed fires.
     pub failures: u64,
+    /// Fires skipped (leadership gate, per-job breaker opt-out of the
+    /// runner, or a paused breaker before the report).
+    pub skips: u64,
+    /// Fires paused by the breaker (Open/HalfOpen refusal).
+    pub paused: u64,
     /// Whether the job ended past its failure budget.
     pub degraded: bool,
     /// The most recent failure message.
@@ -153,6 +158,8 @@ pub struct RunReport {
 pub struct WorkerSupervisor {
     shutdown: ShutdownGuard,
     jitter: JitterPolicy,
+    /// Deterministic jitter seed override (`Supervisor::seed`).
+    seed: Option<u64>,
     drain_cap: Duration,
     holder: String,
     runners: Vec<Arc<JobRunner>>,
@@ -171,6 +178,7 @@ impl WorkerSupervisor {
         Self {
             shutdown,
             jitter: JitterPolicy::default(),
+            seed: None,
             drain_cap: DEFAULT_DRAIN_CAP,
             holder: holder_id(),
             runners: Vec::new(),
@@ -181,6 +189,15 @@ impl WorkerSupervisor {
             #[cfg(feature = "leader")]
             lease_ttl: DEFAULT_LEASE_TTL,
         }
+    }
+
+    /// Set the jitter policy (default: full-jitter at fraction 0.2).
+    /// Seed the per-worker jitter RNGs deterministically. Same seed +
+    /// same job set = same jitter sequence across runs — for test
+    /// reproducibility. Default: wall-clock nanos (decorrelation).
+    pub fn seed(&mut self, seed: u64) -> &mut Self {
+        self.seed = Some(seed);
+        self
     }
 
     /// Set the jitter policy (default: full-jitter at fraction 0.2).
@@ -236,9 +253,14 @@ impl WorkerSupervisor {
         }
         spec.trigger.validate()?;
 
+        let use_breaker = spec.use_breaker;
         let runner = JobRunner::new(spec, self.jitter.clone());
         #[cfg(feature = "breaker")]
-        let runner = runner.with_breaker(self.breaker_config.clone());
+        let runner = if use_breaker {
+            runner.with_breaker(self.breaker_config.clone())
+        } else {
+            runner
+        };
         #[cfg(feature = "leader")]
         let runner = runner.with_lease(self.lease.clone(), self.lease_ttl);
         self.runners.push(Arc::new(runner));
@@ -293,7 +315,8 @@ impl WorkerSupervisor {
             let runner = Arc::clone(runner);
             let shutdown = self.shutdown.clone();
             let holder = self.holder.clone();
-            loops.spawn(async move { (index, runner.run_loop(shutdown, holder).await) });
+            let seed = self.seed.unwrap_or_else(crate::trigger::clock_seed);
+            loops.spawn(async move { (index, runner.run_loop(shutdown, holder, seed).await) });
         }
 
         // Park until shutdown is signalled (or every loop somehow ends).
