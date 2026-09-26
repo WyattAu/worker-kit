@@ -5,3 +5,21 @@
 criteria = "safe-to-deploy"
 version = "0.1.0"
 notes = "WyattAu first-party crate; audited as the original in-tree implementation."
+
+[[audits.worker-kit]]
+criteria = "safe-to-deploy"
+version = "0.2.0"
+notes = "WyattAu first-party crate; 0.2.0 adds fire_at_start/drain_pass/use_breaker spec fields, Supervisor::seed, and summary counters — reviewed as the original in-tree implementation."
+
+# Dev-only chain: testcontainers (0.27/0.15) pulled serde_with 3.24.0 in the
+# 0.2.0 lock refresh; no safe-to-run certification exists for the fresh
+# version yet. Not in any runtime graph. Tracking: imports.lock refresh.
+[[audits.serde_with]]
+criteria = "safe-to-run"
+version = "3.24.0"
+dependency_kind = "dev"
+
+[[audits.serde_with_macros]]
+criteria = "safe-to-run"
+version = "3.24.0"
+dependency_kind = "dev"
