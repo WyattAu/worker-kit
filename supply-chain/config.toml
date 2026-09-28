@@ -886,7 +886,15 @@ criteria = "safe-to-run"
 [[exemptions.serde_with]]
 version = "3.24.0"
 criteria = "safe-to-run"
+
+[[exemptions.serde_with]]
+version = "3.24.0"
+criteria = "safe-to-run"
 notes = "Dev-only via testcontainers/testcontainers-modules [dev-dependencies]; no safe-to-run certification for 3.24.0 yet."
+
+[[exemptions.serde_with_macros]]
+version = "3.24.0"
+criteria = "safe-to-run"
 
 [[exemptions.serde_with_macros]]
 version = "3.24.0"
@@ -1299,15 +1307,4 @@ criteria = "safe-to-deploy"
 
 [[exemptions.zmij]]
 version = "1.0.23"
-criteria = "safe-to-run"
-
-# Dev-only chain: testcontainers (0.27/0.15) pulled serde_with 3.24.0 in the
-# 0.2.0 lock refresh; no peer certification exists for the fresh version.
-# Not in any runtime graph. Tracking: next imports.lock refresh.
-[[exemptions.serde_with]]
-version = "3.24.0"
-criteria = "safe-to-run"
-
-[[exemptions.serde_with_macros]]
-version = "3.24.0"
 criteria = "safe-to-run"
