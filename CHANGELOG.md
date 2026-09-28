@@ -3,6 +3,13 @@
 All notable changes to this project are documented here. Format: [Keep a
 Changelog](https://keepachangelog.com/) — versions follow [semver](https://semver.org).
 
+## [0.2.1] - 2026-09-28
+
+### Fixed
+- **Leader liveness**: a failed lease renew now falls back to `acquire`,
+  so a lapsed leader can take over again instead of skipping forever
+  (regression-tested).
+
 ## [0.2.0] - 2026-09-26
 
 ### Added
