@@ -8,5 +8,10 @@ notes = "WyattAu first-party crate; audited as the original in-tree implementati
 
 [[audits.worker-kit]]
 criteria = "safe-to-deploy"
+version = "0.2.1"
+notes = "WyattAu first-party crate; 0.2.1 releases the leader-liveness fix (renew-failure falls back to acquire)."
+
+[[audits.worker-kit]]
+criteria = "safe-to-deploy"
 version = "0.2.0"
 notes = "WyattAu first-party crate; 0.2.0 adds fire_at_start/drain_pass/use_breaker spec fields, Supervisor::seed, and summary counters — reviewed as the original in-tree implementation."
