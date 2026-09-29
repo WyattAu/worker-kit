@@ -128,6 +128,7 @@
 //!         fire_at_start: false,
 //!         drain_pass: false,
 //!         use_breaker: true,
+//!         on_degraded: None,
 //!     })
 //!     .unwrap();
 //!
@@ -170,6 +171,14 @@ mod error;
 mod job;
 #[cfg(feature = "leader")]
 mod leader;
+mod rng;
+
+/// Internal jitter source — exposed `#[doc(hidden)]` for the no-`rand`
+/// compile guarantee test.
+#[doc(hidden)]
+pub mod __internal {
+    pub use crate::rng::{JitterSource, SplitMix64};
+}
 mod runner;
 mod supervisor;
 mod trigger;

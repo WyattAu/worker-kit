@@ -3,8 +3,7 @@
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use rand::rngs::SmallRng;
-use rand::{RngExt, SeedableRng};
+use crate::rng::JitterSource;
 
 /// Smallest interval we honor. A `Trigger::Interval` below this is
 /// clamped up: a zero interval would pin a core with back-to-back fires.
@@ -136,10 +135,10 @@ impl JitterPolicy {
         scaled.min(gap)
     }
 
-    /// Full-jitter delay for a gap, drawn from the given RNG: uniform in
-    /// `[0, fraction × gap]`.
+    /// Full-jitter delay for a gap, drawn from the given source: uniform
+    /// in `[0, fraction × gap]`.
     #[must_use]
-    pub fn jitter(&self, gap: Duration, rng: &mut impl RngExt) -> Duration {
+    pub fn jitter(&self, gap: Duration, rng: &mut impl JitterSource) -> Duration {
         let window = self.window(gap);
         if window.is_zero() {
             return Duration::ZERO;
@@ -153,7 +152,7 @@ impl JitterPolicy {
     /// exists for tests and capacity planning.
     #[must_use]
     pub fn jitter_seeded(&self, gap: Duration, seed: u64) -> Duration {
-        self.jitter(gap, &mut SmallRng::seed_from_u64(seed))
+        self.jitter(gap, &mut crate::rng::SplitMix64::new(seed))
     }
 }
 

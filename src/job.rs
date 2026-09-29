@@ -24,6 +24,9 @@ pub const DEFAULT_FAILURE_BUDGET: u32 = 5;
 /// drain.
 pub type Job = Arc<dyn Fn(JobContext) -> BoxFuture<'static, Result<(), JobError>> + Send + Sync>;
 
+/// Degradation-transition hook: called once with the last failure message.
+pub type OnDegradedHook = std::sync::Arc<dyn Fn(&str) + Send + Sync>;
+
 /// Everything a fire is told: who it is, why it fired, and how to notice
 /// shutdown.
 ///
@@ -75,6 +78,7 @@ impl std::fmt::Debug for JobContext {
 ///     fire_at_start: false,
 ///     drain_pass: false,
 ///     use_breaker: true,
+///     on_degraded: None,
 /// };
 /// assert_eq!(spec.failure_budget, 5);
 /// ```
@@ -115,6 +119,11 @@ pub struct JobSpec {
     /// apps, where "transient errors → stop sweeping" hurts more than
     /// the stampede it prevents.
     pub use_breaker: bool,
+    /// Called once when the job transitions to `Degraded` (consecutive
+    /// failures reach the budget). Surface it through the host's own
+    /// channel — kestrel-class apps forward to a `ServiceDegraded` event
+    /// bus rather than polling status.
+    pub on_degraded: Option<OnDegradedHook>,
 }
 
 impl JobSpec {
@@ -130,6 +139,7 @@ impl JobSpec {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         }
     }
 }

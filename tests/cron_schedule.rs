@@ -45,6 +45,7 @@ fn noop_spec(name: &str, expr: &str) -> JobSpec {
         fire_at_start: false,
         drain_pass: false,
         use_breaker: true,
+        on_degraded: None,
     }
 }
 

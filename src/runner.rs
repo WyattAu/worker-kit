@@ -7,8 +7,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, PoisonError};
 use std::time::{Duration, Instant, SystemTime};
 
-use rand::rngs::SmallRng;
-use rand::SeedableRng;
+use crate::rng::SplitMix64;
 use shutdown_kit::ShutdownGuard;
 
 #[cfg(feature = "breaker")]
@@ -194,7 +193,7 @@ impl JobRunner {
             h.finish()
         };
         let effective_seed = seed ^ name_hash;
-        let mut rng = SmallRng::seed_from_u64(effective_seed);
+        let mut rng = SplitMix64::new(effective_seed);
         let mut shutdown_rx = shutdown.watch_receiver();
 
         // First tick: one schedule step from the supervisor's start —
@@ -286,8 +285,13 @@ impl JobRunner {
                 self.stats.fires.fetch_add(1, Ordering::Relaxed);
                 self.stats.failures.fetch_add(1, Ordering::Relaxed);
                 let consecutive = self.stats.consecutive.fetch_add(1, Ordering::Relaxed) + 1;
-                if u64::from(consecutive) >= u64::from(self.spec.failure_budget) {
-                    self.stats.degraded.store(true, Ordering::Relaxed);
+                if u64::from(consecutive) >= u64::from(self.spec.failure_budget)
+                    && !self.stats.degraded.swap(true, Ordering::Relaxed)
+                {
+                    // Edge-triggered: exactly once per Degraded transition.
+                    if let Some(hook) = &self.spec.on_degraded {
+                        hook(&message);
+                    }
                 }
                 self.record_last_error(message);
             }
@@ -437,6 +441,7 @@ mod tests {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         };
         JobRunner::new(spec, JitterPolicy::new(0.0))
     }
@@ -588,6 +593,7 @@ mod tests {
                     fire_at_start: false,
                     drain_pass: false,
                     use_breaker: true,
+                    on_degraded: None,
                 },
                 JitterPolicy::new(0.0),
             )

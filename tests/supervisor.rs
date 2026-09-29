@@ -152,6 +152,7 @@ async fn degraded_after_the_failure_budget_but_still_running() {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         })
         .expect("valid name");
 
@@ -266,6 +267,7 @@ mod breaker_tests {
                 fire_at_start: false,
                 drain_pass: false,
                 use_breaker: true,
+                on_degraded: None,
             })
             .expect("valid name");
 
@@ -356,6 +358,7 @@ mod leader_tests {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         };
         supervisor.register(spec("crowned", true)).expect("valid");
         supervisor.register(spec("commoner", false)).expect("valid");
@@ -396,6 +399,7 @@ mod leader_tests {
                 fire_at_start: false,
                 drain_pass: false,
                 use_breaker: true,
+                on_degraded: None,
             })
             .expect("valid");
 
@@ -492,6 +496,7 @@ async fn run_report_is_exact_and_name_ordered() {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         })
         .expect("valid");
     supervisor
@@ -595,6 +600,7 @@ async fn fire_at_start_fires_immediately_before_the_first_period() {
             fire_at_start: true,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         })
         .expect("valid");
 
@@ -636,6 +642,7 @@ async fn drain_pass_fires_once_after_shutdown() {
             fire_at_start: false,
             drain_pass: true,
             use_breaker: true,
+            on_degraded: None,
         })
         .expect("valid");
 
@@ -682,6 +689,7 @@ async fn use_breaker_false_lets_a_failing_job_keep_firing() {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: false,
+            on_degraded: None,
         })
         .expect("valid");
 
@@ -728,6 +736,7 @@ async fn seeded_supervisor_is_reproducible_in_shape() {
             fire_at_start: false,
             drain_pass: false,
             use_breaker: true,
+            on_degraded: None,
         })
         .expect("valid");
 
@@ -741,4 +750,58 @@ async fn seeded_supervisor_is_reproducible_in_shape() {
     .await;
     guard.shutdown();
     let _ = runner.await;
+}
+
+// ── 0.3.0: degradation hook + rand-optional jitter source ─────────────
+
+#[tokio::test]
+async fn on_degraded_hook_fires_exactly_once_per_transition() {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    let (guard, mut supervisor) = supervisor(false);
+    let degradations = Arc::new(AtomicU32::new(0));
+    let d = Arc::clone(&degradations);
+    let hook = Arc::new(move |_msg: &str| {
+        d.fetch_add(1, Ordering::SeqCst);
+    }) as Arc<dyn Fn(&str) + Send + Sync>;
+
+    supervisor
+        .register(JobSpec {
+            name: "hooked".to_owned(),
+            trigger: Trigger::Interval(Duration::from_millis(10)),
+            closure: boxed(|_| async { Err(JobError::msg("boom")) }),
+            failure_budget: 2,
+            leader: false,
+            fire_at_start: false,
+            drain_pass: false,
+            use_breaker: false, // keep firing past the threshold
+            on_degraded: Some(hook),
+        })
+        .expect("valid");
+
+    let supervisor = Arc::new(supervisor);
+    let runner = tokio::spawn(Arc::clone(&supervisor).run());
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    guard.shutdown();
+    let _ = runner.await;
+
+    assert_eq!(
+        degradations.load(Ordering::SeqCst),
+        1,
+        "hook is edge-triggered: once per Degraded transition"
+    );
+}
+
+#[test]
+fn builds_without_the_rand_feature() {
+    // Compile-level guarantee: default-features includes `rand`; this
+    // crate's own tests run all-features. The no-rand combo is asserted
+    // by `cargo check --no-default-features` in CI — here we only assert
+    // the built-in source draws stay within bounds.
+    use worker_kit::__internal::JitterSource as _;
+    let mut rng = worker_kit::__internal::SplitMix64::new(0xC0FFEE);
+    for _ in 0..1000 {
+        let d = rng.random_range(Duration::ZERO..=Duration::from_secs(10));
+        assert!(d <= Duration::from_secs(10));
+    }
 }

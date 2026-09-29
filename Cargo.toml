@@ -1,6 +1,6 @@
 [package]
 name = "worker-kit"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Periodic job scheduling for Rust services — jittered intervals, graceful drain, breaker-aware failure budgets, optional leader election"
@@ -37,7 +37,6 @@ cron = { version = "0.17", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, features = [
   "std",
 ] }
-rand = { version = "0.10", default-features = false, features = ["std"] }
 redis = { version = "0.27", default-features = false, features = [
   "tokio-comp",
   "connection-manager",

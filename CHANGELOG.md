@@ -3,6 +3,35 @@
 All notable changes to this project are documented here. Format: [Keep a
 Changelog](https://keepachangelog.com/) — versions follow [semver](https://semver.org).
 
+## [0.3.0] - 2026-09-29
+
+### Added
+- `JobSpec::fire_at_start` — immediate first fire before the first
+  scheduled tick (startup-pass jobs; tokio-interval semantics opt-in).
+- `JobSpec::drain_pass` — one final fire after shutdown is observed, for
+  flush-then-exit jobs.
+- `JobSpec::use_breaker` — per-job breaker opt-out for local-DB sweeps.
+- `JobSpec::on_degraded` + `OnDegradedHook` — edge-triggered callback
+  when the job transitions to `Degraded` (surface through the host's own
+  event channel — kestrel-class `ServiceDegraded` bus).
+- `Supervisor::seed(u64)` — deterministic jitter sequence.
+- `JobRunSummary::skips` / `::paused`.
+
+### Changed (breaking — 0.x minor bump)
+- **`rand` dependency removed.** Jitter draws through a built-in
+  SplitMix64 source (`crate::rng`); `JitterPolicy::jitter` now takes
+  `&mut impl JitterSource` instead of `&mut impl RngExt`. Consumes no
+  `rand` in the runtime tree — kestrel-class crates avoid `rand` by
+  policy, and the jitter contract (bounds, not security) never needed
+  it.
+
+### Fixed
+- Dropped the forced `timeout` feature on the breaker dependency: it
+  unified graph-wide and broke hosts with non-total breaker matches
+  (estate-integration round-4 finding).
+- Leader liveness: a failed lease renew falls back to `acquire`, so a
+  lapsed leader can take over again instead of skipping forever.
+
 ## [0.2.1] - 2026-09-28
 
 ### Fixed
