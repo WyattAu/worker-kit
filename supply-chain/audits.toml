@@ -15,3 +15,8 @@ notes = "WyattAu first-party crate; 0.2.0 adds fire_at_start/drain_pass/use_brea
 criteria = "safe-to-deploy"
 version = "0.2.1"
 notes = "WyattAu first-party crate; 0.2.1 releases the leader-liveness fix (renew-failure falls back to acquire)."
+
+[[audits.worker-kit]]
+criteria = "safe-to-deploy"
+version = "0.3.0"
+notes = "WyattAu first-party crate; 0.3.0 removes the rand dependency (SplitMix64 jitter source) and adds fire_at_start/drain_pass/use_breaker/on_degraded — reviewed as the original in-tree implementation."
