@@ -37,7 +37,7 @@ cron = { version = "0.17", default-features = false, optional = true }
 futures = { version = "0.3", default-features = false, features = [
   "std",
 ] }
-redis = { version = "0.27", default-features = false, features = [
+redis = { version = "1.7", default-features = false, features = [
   "tokio-comp",
   "connection-manager",
   "script",
