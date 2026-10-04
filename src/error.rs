@@ -77,7 +77,14 @@ impl<E: Error + Send + Sync + 'static> From<E> for JobError {
 
 /// Why [`WorkerSupervisor::register`](crate::WorkerSupervisor::register)
 /// refused a job spec.
+///
+/// `#[non_exhaustive]` for the same reason as
+/// [`Trigger`](crate::Trigger): [`RegisterError::InvalidCron`] exists only
+/// under the `cron` feature, and feature unification is graph-wide, so a host
+/// that enables `cron` anywhere would otherwise have its exhaustive `match`
+/// broken by a variant it never requested.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum RegisterError {
     /// The job name violated `[a-z0-9_.-]{1,64}` — see
     /// [`is_valid_name`].

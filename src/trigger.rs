@@ -30,7 +30,18 @@ pub(crate) const SCHEDULE_PARK: Duration = Duration::from_secs(60);
 ///   local hour is simply not represented. Schedules that must track
 ///   local civil time need a tz-aware scheduler — this kit deliberately
 ///   does not guess time zones.
+///
+/// # Matching
+///
+/// This enum is `#[non_exhaustive]` because [`Trigger::Cron`] exists only
+/// under the `cron` feature. Cargo unifies features graph-wide, so a host that
+/// enables `cron` *anywhere* in its dependency graph would otherwise find its
+/// exhaustive `match` broken by a variant it never asked for. `#[non_exhaustive]`
+/// turns that into one compile error at the point of use, with a `_` arm,
+//   instead of a silent breakage. Prefer `matches!(t, Trigger::Interval(_))`
+///   or a `#[cfg(feature = "cron")]` arm pair over a blanket `_`.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Trigger {
     /// Fire every `interval`, starting one (jittered) interval after the
     /// supervisor begins. Intervals below 1 ms are clamped to 1 ms.

@@ -3,6 +3,36 @@
 All notable changes to this project are documented here. Format: [Keep a
 Changelog](https://keepachangelog.com/) — versions follow [semver](https://semver.org).
 
+## [Unreleased]
+
+### Changed (breaking — 0.x minor bump)
+
+- **`Trigger` and `RegisterError` are now `#[non_exhaustive]`.**
+  `Trigger::Cron` and `RegisterError::InvalidCron` exist only under the
+  `cron` feature, and Cargo unifies features graph-wide: a host that
+  enabled `cron` *anywhere* in its dependency graph — including via a
+  crate with nothing to do with scheduling — would find its exhaustive
+  `match` broken by a variant it never asked for. This is the same defect
+  class as the `breaker`/`timeout` regression fixed in 0.3.0, reached from
+  the other direction: there the variant belonged to a dependency, here it
+  is ours.
+
+  Migration: add a `_` arm to exhaustive matches on `Trigger` or
+  `RegisterError`. Hosts that want cron behaviour should `#[cfg(feature =
+  "cron")]` their `Cron` arm specifically rather than collapsing both
+  variants into one fallback. Nothing changed inside the crate — internal
+  matches still see every variant.
+
+  Found by the estate-wide `feature-compat` gate
+  (`engineering-standards/scripts/check-features.py`, rule R1).
+
+### Fixed
+
+- An `unused_variables` warning in a `--no-default-features` build:
+  `WorkerSupervisor::register` bound `spec.use_breaker` unconditionally
+  although only the `breaker`-gated code path reads it. The binding is now
+  `#[cfg(feature = "breaker")]`, matching its single use.
+
 ## [0.3.0] - 2026-09-29
 
 ### Added

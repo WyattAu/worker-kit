@@ -253,6 +253,10 @@ impl WorkerSupervisor {
         }
         spec.trigger.validate()?;
 
+        // Read the breaker opt-out before `spec` moves into the runner. The
+        // binding is `cfg`-gated with its only use so a `--no-default-features`
+        // build has no unused local.
+        #[cfg(feature = "breaker")]
         let use_breaker = spec.use_breaker;
         let runner = JobRunner::new(spec, self.jitter.clone());
         #[cfg(feature = "breaker")]
