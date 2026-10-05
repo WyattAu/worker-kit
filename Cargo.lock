@@ -2250,9 +2250,9 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "shutdown-kit"
-version = "0.3.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e771ad458bc3d34b93b99c8da190a3d484a486f243b21706b0c53d031d125450"
+checksum = "e5e80c9f1146da06b760526af42a503e999927bbe4db16a065b10e6ac92a70dc"
 dependencies = [
  "thiserror",
  "tokio",
