@@ -1,4 +1,4 @@
-# Security Policy — outbox-kit
+# Security Policy: outbox-kit
 
 ## Supported versions
 
@@ -47,8 +47,8 @@ considerations for integrators:
 - **Breaker pauses are availability, not loss.** An open circuit stops
   sends but never discards events; parked (`NEVER`) events are only ever
   created by the configured `max_attempts` budget. Alert on
-  `parked_count > 0` — it means a real event gave up.
-- `#![forbid(unsafe_code)]` — no unsafe blocks exist in this crate.
+  `parked_count > 0`: it means a real event gave up.
+- `#![forbid(unsafe_code)]`: no unsafe blocks exist in this crate.
 
 [GitHub security advisories]:
     https://github.com/WyattAu/outbox-kit/security/advisories/new

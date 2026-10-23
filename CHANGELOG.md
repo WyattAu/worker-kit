@@ -1,27 +1,27 @@
 # Changelog
 
 All notable changes to this project are documented here. Format: [Keep a
-Changelog](https://keepachangelog.com/) — versions follow [semver](https://semver.org).
+Changelog](https://keepachangelog.com/): versions follow [semver](https://semver.org).
 
 ## [0.3.0] - 2026-09-29
 
 ### Added
-- `JobSpec::fire_at_start` — immediate first fire before the first
+- `JobSpec::fire_at_start`: immediate first fire before the first
   scheduled tick (startup-pass jobs; tokio-interval semantics opt-in).
-- `JobSpec::drain_pass` — one final fire after shutdown is observed, for
+- `JobSpec::drain_pass`: one final fire after shutdown is observed, for
   flush-then-exit jobs.
-- `JobSpec::use_breaker` — per-job breaker opt-out for local-DB sweeps.
-- `JobSpec::on_degraded` + `OnDegradedHook` — edge-triggered callback
+- `JobSpec::use_breaker`: per-job breaker opt-out for local-DB sweeps.
+- `JobSpec::on_degraded` + `OnDegradedHook`: edge-triggered callback
   when the job transitions to `Degraded` (surface through the host's own
-  event channel — kestrel-class `ServiceDegraded` bus).
-- `Supervisor::seed(u64)` — deterministic jitter sequence.
+  event channel: kestrel-class `ServiceDegraded` bus).
+- `Supervisor::seed(u64)`: deterministic jitter sequence.
 - `JobRunSummary::skips` / `::paused`.
 
-### Changed (breaking — 0.x minor bump)
+### Changed (breaking: 0.x minor bump)
 - **`rand` dependency removed.** Jitter draws through a built-in
   SplitMix64 source (`crate::rng`); `JitterPolicy::jitter` now takes
   `&mut impl JitterSource` instead of `&mut impl RngExt`. Consumes no
-  `rand` in the runtime tree — kestrel-class crates avoid `rand` by
+  `rand` in the runtime tree: kestrel-class crates avoid `rand` by
   policy, and the jitter contract (bounds, not security) never needed
   it.
 
@@ -42,16 +42,16 @@ Changelog](https://keepachangelog.com/) — versions follow [semver](https://sem
 ## [0.2.0] - 2026-09-26
 
 ### Added
-- `JobSpec::fire_at_start` — immediate first fire before the first
+- `JobSpec::fire_at_start`: immediate first fire before the first
   scheduled tick (startup-pass jobs; tokio-interval semantics opt-in).
-- `JobSpec::drain_pass` — one final fire after shutdown is observed, for
+- `JobSpec::drain_pass`: one final fire after shutdown is observed, for
   flush-then-exit jobs (the closure sees the guard signalled; gate on it
   only for non-drain passes).
-- `Supervisor::seed(u64)` — deterministic jitter sequence across runs
+- `Supervisor::seed(u64)`: deterministic jitter sequence across runs
   (XOR'd with the worker name so distinct jobs decorrelate).
-- `JobRunSummary::skips` / `::paused` — leadership/breaker outcomes are
+- `JobRunSummary::skips` / `::paused`: leadership/breaker outcomes are
   now auditable in the terminal report.
-- `JobSpec::use_breaker` — per-job breaker opt-out for local-DB sweeps
+- `JobSpec::use_breaker`: per-job breaker opt-out for local-DB sweeps
   where pausing on clustered failures is wrong.
 
 ### Fixed
@@ -60,7 +60,7 @@ Changelog](https://keepachangelog.com/) — versions follow [semver](https://sem
   (estate-integration round-4 finding). This crate's fire match remains
   total under any unification.
 
-## [0.1.0] — 2026-09-26
+## [0.1.0]: 2026-09-26
 
 ### Added
 
@@ -73,14 +73,14 @@ Changelog](https://keepachangelog.com/) — versions follow [semver](https://sem
   (`JitterPolicy`, default fraction 0.2, per-worker `SmallRng` seeded
   from wall-clock nanos) and coalescing: a run outlasting its interval
   fires the next immediately after completion, never stacked.
-- `Trigger::Cron(String)` behind the default-off `cron` feature —
+- `Trigger::Cron(String)` behind the default-off `cron` feature:
   parsed eagerly at registration, evaluated in UTC (documented DST
   limitations), `Trigger::next_fire_after` exposed for tests and
   capacity planning.
 - Failure budgets: consecutive failures (default 5, `u32`) mark a job
   `Degraded` in status while it keeps running; a success resets.
 - `breaker` feature (default ON): per-job estate `breaker = "2"`
-  circuit breaker wrapping the closure — clustered failures pause via
+  circuit breaker wrapping the closure: clustered failures pause via
   open/half-open, paused attempts consume neither the failure budget
   nor the breaker's budget, `breaker_state`/`breaker_metrics`
   accessors. The fire match is total under any breaker feature
@@ -89,7 +89,7 @@ Changelog](https://keepachangelog.com/) — versions follow [semver](https://sem
   acquire/renew) + `MemoryLease` (always wins) + `RedisLease`
   (`redis` feature, `SET NX PX` acquisition and an atomic
   compare-and-expire renewal over a `ConnectionManager`). Non-leaders
-  skip their fires — recorded, never failures.
+  skip their fires: recorded, never failures.
 - Live `status()` snapshots (fires, failures, skips, paused,
   consecutive failures, degraded, last error).
 - Hermetic test suite (coalescing, jitter-bound proptest, degraded
