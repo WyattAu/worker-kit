@@ -1,4 +1,5 @@
 # worker-kit
+[![Estate integration](https://github.com/WyattAu/estate-integration/actions/workflows/ci.yml/badge.svg)](https://github.com/WyattAu/estate-integration/actions/workflows/ci.yml)
 
 Periodic job scheduling for Rust services: jittered intervals, graceful
 drain, breaker-aware failure budgets, optional leader election.
