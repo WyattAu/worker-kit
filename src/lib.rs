@@ -173,6 +173,9 @@ mod job;
 mod leader;
 mod rng;
 
+/// Pressure-reactive background work: a PSI polling watcher for the
+/// systemd memory-pressure protocol (round 8 iter 68, backlog #11).
+pub mod pressure;
 /// Internal jitter source — exposed `#[doc(hidden)]` for the no-`rand`
 /// compile guarantee test.
 #[doc(hidden)]
@@ -189,6 +192,10 @@ pub use crate::job::{Job, JobContext, JobSpec, DEFAULT_FAILURE_BUDGET};
 pub use crate::leader::RedisLease;
 #[cfg(feature = "leader")]
 pub use crate::leader::{Lease, MemoryLease};
+pub use crate::pressure::{
+    parse_some, read_sample, watch, PressureConfig, PressureSample, DEFAULT_PSI_PATH,
+    THRESHOLD_DEFAULT,
+};
 #[cfg(feature = "leader")]
 pub use crate::supervisor::DEFAULT_LEASE_TTL;
 pub use crate::supervisor::{

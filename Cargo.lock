@@ -3099,6 +3099,7 @@ dependencies = [
  "proptest",
  "redis",
  "shutdown-kit",
+ "tempfile",
  "testcontainers",
  "testcontainers-modules",
  "thiserror",
