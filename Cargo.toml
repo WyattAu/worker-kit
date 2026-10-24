@@ -1,9 +1,9 @@
 [package]
 name = "worker-kit"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.85"
-description = "Periodic job scheduling for Rust services — jittered intervals, graceful drain, breaker-aware failure budgets, optional leader election"
+description = "Periodic job scheduling for Rust services: jittered intervals, graceful drain, breaker-aware failure budgets, optional leader election"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/WyattAu/worker-kit"
 keywords = ["scheduler", "cron", "jobs", "reliability", "background"]
