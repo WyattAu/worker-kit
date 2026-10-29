@@ -156,10 +156,6 @@ criteria = "safe-to-deploy"
 version = "0.10.1"
 criteria = "safe-to-run"
 
-[[exemptions.cpufeatures]]
-version = "0.3.1"
-criteria = "safe-to-run"
-
 [[exemptions.criterion]]
 version = "0.8.2"
 criteria = "safe-to-run"
@@ -708,10 +704,6 @@ criteria = "safe-to-run"
 version = "0.23.45"
 criteria = "safe-to-run"
 
-[[exemptions.rustls]]
-version = "0.23.46"
-criteria = "safe-to-run"
-
 [[exemptions.rustls-native-certs]]
 version = "0.8.4"
 criteria = "safe-to-run"
@@ -722,10 +714,6 @@ criteria = "safe-to-run"
 
 [[exemptions.rustls-webpki]]
 version = "0.103.15"
-criteria = "safe-to-run"
-
-[[exemptions.rustls-webpki]]
-version = "0.103.16"
 criteria = "safe-to-run"
 
 [[exemptions.rustversion]]
@@ -856,10 +844,6 @@ criteria = "safe-to-deploy"
 version = "3.0.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.sync_wrapper]]
-version = "1.0.2"
-criteria = "safe-to-run"
-
 [[exemptions.synstructure]]
 version = "0.14.0"
 criteria = "safe-to-deploy"
@@ -907,10 +891,6 @@ criteria = "safe-to-run"
 [[exemptions.tinyvec]]
 version = "1.13.3"
 criteria = "safe-to-run"
-
-[[exemptions.tokio]]
-version = "1.53.1"
-criteria = "safe-to-deploy"
 
 [[exemptions.tokio]]
 version = "1.54.1"
@@ -1024,10 +1004,6 @@ criteria = "safe-to-deploy"
 version = "0.3.106"
 criteria = "safe-to-run"
 
-[[exemptions.web-time]]
-version = "1.1.0"
-criteria = "safe-to-run"
-
 [[exemptions.winapi]]
 version = "0.3.9"
 criteria = "safe-to-run"
@@ -1069,10 +1045,6 @@ version = "0.52.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows-sys]]
-version = "0.52.0"
-criteria = "safe-to-run"
-
-[[exemptions.windows-sys]]
 version = "0.61.2"
 criteria = "safe-to-deploy"
 
@@ -1080,76 +1052,44 @@ criteria = "safe-to-deploy"
 version = "0.52.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.windows-targets]]
-version = "0.52.6"
-criteria = "safe-to-run"
-
 [[exemptions.windows_aarch64_gnullvm]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
-
-[[exemptions.windows_aarch64_gnullvm]]
-version = "0.52.6"
-criteria = "safe-to-run"
 
 [[exemptions.windows_aarch64_msvc]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.windows_aarch64_msvc]]
-version = "0.52.6"
-criteria = "safe-to-run"
-
 [[exemptions.windows_i686_gnu]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
-
-[[exemptions.windows_i686_gnu]]
-version = "0.52.6"
-criteria = "safe-to-run"
 
 [[exemptions.windows_i686_gnullvm]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.windows_i686_gnullvm]]
-version = "0.52.6"
-criteria = "safe-to-run"
-
 [[exemptions.windows_i686_msvc]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
-
-[[exemptions.windows_i686_msvc]]
-version = "0.52.6"
-criteria = "safe-to-run"
 
 [[exemptions.windows_x86_64_gnu]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
 
-[[exemptions.windows_x86_64_gnu]]
-version = "0.52.6"
-criteria = "safe-to-run"
-
 [[exemptions.windows_x86_64_gnullvm]]
-version = "0.52.6"
-criteria = "safe-to-deploy"
-
-[[exemptions.windows_x86_64_gnullvm]]
-version = "0.52.6"
-criteria = "safe-to-run"
-
-[[exemptions.windows_x86_64_msvc]]
 version = "0.52.6"
 criteria = "safe-to-deploy"
 
 [[exemptions.windows_x86_64_msvc]]
 version = "0.52.6"
-criteria = "safe-to-run"
+criteria = "safe-to-deploy"
 
 [[exemptions.winnow]]
 version = "0.7.15"
+criteria = "safe-to-deploy"
+
+[[exemptions.worker-kit]]
+version = "0.3.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.writeable]]
